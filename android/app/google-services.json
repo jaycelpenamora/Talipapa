@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "886106181787",
+    "project_id": "talipapa-ef93a",
+    "storage_bucket": "talipapa-ef93a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:886106181787:android:5bc506839b0165fd1df63e",
+        "android_client_info": {
+          "package_name": "com.example.coolapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmZD4h7Gc3wCkdGyUe4Q9qAUYpxB7gw0k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
