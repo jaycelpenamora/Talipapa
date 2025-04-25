@@ -6,3 +6,6 @@ const kPink = Color(0xFFF18496);
 const kLightGray = Color(0xFFF9F9F9);
 const kAltGray = Color(0xFFF7F7F7);
 const kDivider = Color(0xFFEDEDED);
+
+//darkmode
+const kDarkAltGray = Color.fromARGB(255, 42, 54, 77);

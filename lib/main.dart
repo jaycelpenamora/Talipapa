@@ -9,6 +9,7 @@ import 'chatbot_page.dart';
 import 'settings_page.dart';
 import 'custom_bottom_navbar.dart';
 import 'constants.dart';
+import 'image_mapping.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -434,7 +435,9 @@ class _HomePageState extends State<HomePage> {
                 CircleAvatar(
                   radius: 16,
                   backgroundImage: AssetImage(
-                    'assets/commodity_images/${selectedCommodity ?? "default"}.png',
+                    selectedCommodity != null
+                        ? 'assets/commodity_images/${getCommodityImage(selectedCommodity!, commodityType: null, specification: null)}'
+                        : 'assets/commodity_images/default_image.jpg',
                   ),
                 ),
                 SizedBox(width: 8), // Add spacing between the image and the text
@@ -730,7 +733,7 @@ class _HomePageState extends State<HomePage> {
                                   selectedCommodity = commodity['commodity']; // Update selectedCommodity
                                 });
                               },
-                              child: _buildCommodityItem(commodity, selectedCommodity == commodity['commodity']),
+                              child: _buildCommodityItem(commodity, selectedCommodity == commodity['commodity'], index),
                             );
                           },
                         ),
@@ -774,7 +777,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCommodityItem(Map<String, dynamic> commodity, bool isSelected) {
+  Widget _buildCommodityItem(Map<String, dynamic> commodity, bool isSelected, int index) {
     final String commodityName = commodity['commodity'] ?? "Unknown Commodity";
     final String unit = commodity['unit'] ?? ""; // e.g., "kg"
     final String commodityType = commodity['commodity_type'] ?? "Unknown Type";
@@ -784,6 +787,9 @@ class _HomePageState extends State<HomePage> {
                                   commodity['specification'].toString().toLowerCase() == "nan")
         ? "-" // Replace empty, "None", or "NaN" with "-"
         : commodity['specification'].toString();
+
+    // Alternate background color based on index
+    final backgroundColor = index % 2 == 0 ? Colors.white : kAltGray;
 
     return AnimatedContainer(
       duration: Duration(milliseconds: 200),
@@ -797,7 +803,7 @@ class _HomePageState extends State<HomePage> {
                 stops: [0.0, 0.56],
               )
             : null,
-        color: isSelected ? null : Colors.white,
+        color: isSelected ? null : backgroundColor, // Use alternating background color
         border: Border(
           top: BorderSide(color: kDivider),
           bottom: BorderSide(color: kDivider),
@@ -808,7 +814,17 @@ class _HomePageState extends State<HomePage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CircleAvatar(backgroundColor: Colors.green), // Placeholder for an image
+            // Display the commodity image
+            CircleAvatar(
+              radius: 24, // Adjust the size of the image
+              backgroundImage: AssetImage(
+                'assets/commodity_images/${getCommodityImage(
+                  commodityName,
+                  commodityType: commodityType,
+                  specification: specification,
+                )}',
+              ),
+            ),
             SizedBox(width: 16),
             Expanded(
               child: Column(

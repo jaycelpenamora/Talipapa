@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'constants.dart';
-import 'custom_bottom_navbar.dart';
+import 'custom_bottom_navbar.dart'; // Import the custom bottom navigation bar
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -32,21 +32,65 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setBool('darkModeEnabled', darkModeEnabled);
   }
 
+  Future<void> resetData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Clear all saved data
+    setState(() {
+      notificationsEnabled = true;
+      darkModeEnabled = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("All data has been reset.")),
+    );
+  }
+
+  void showResetConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Confirm Reset"),
+          content: Text("Are you sure you want to reset all data? This action cannot be undone."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                resetData(); // Perform reset
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text("Reset"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = darkModeEnabled ? Color(0xFF293045) : kGreen;
-    final textColor = darkModeEnabled ? Color(0xFFBAC1B8) : kBlue;
+    // Dynamically set background and text colors based on darkModeEnabled
+    final backgroundColor = darkModeEnabled ? kDarkAltGray : kGreen;
+    final textColor = darkModeEnabled ? Colors.white : kBlue;
 
     return Scaffold(
+      backgroundColor: backgroundColor, // Dynamic background color
       appBar: AppBar(
         backgroundColor: backgroundColor,
-        title: Text(
-          "Settings",
-          style: TextStyle(color: textColor),
+        elevation: 0,
+        centerTitle: true,
+        title: Center( // Center the "Settings" header horizontally
+          child: Text(
+            "Settings",
+            style: TextStyle(color: textColor, fontSize: 24, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
       body: Container(
-        color: backgroundColor, // Background color
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,7 +111,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
             ),
-            Divider(color: textColor),
 
             // Dark Mode Toggle
             ListTile(
@@ -85,77 +128,21 @@ class _SettingsPageState extends State<SettingsPage> {
                 },
               ),
             ),
-            Divider(color: textColor),
 
-            // Account Management
+            // Reset Data
             ListTile(
               title: Text(
-                "Account",
-                style: TextStyle(fontSize: 18, color: textColor),
-              ),
-              subtitle: Text(
-                "Manage your account settings",
-                style: TextStyle(fontSize: 14, color: textColor),
-              ),
-              onTap: () {
-                // Navigate to account management page
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => AccountManagementPage()),
-                );
-              },
-            ),
-            Divider(color: textColor),
-
-            // Privacy Policy
-            ListTile(
-              title: Text(
-                "Privacy Policy",
+                "Reset Data",
                 style: TextStyle(fontSize: 18, color: textColor),
               ),
               onTap: () {
-                // Handle privacy policy navigation
+                showResetConfirmationDialog(); // Show confirmation dialog
               },
-            ),
-            Divider(color: textColor),
-
-            // App Version
-            ListTile(
-              title: Text(
-                "Version",
-                style: TextStyle(fontSize: 18, color: textColor),
-              ),
-              subtitle: Text(
-                "1.0.0",
-                style: TextStyle(fontSize: 14, color: textColor),
-              ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: CustomBottomNavBar(),
-    );
-  }
-}
-
-// Placeholder for Account Management Page
-class AccountManagementPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: kGreen,
-        title: Text(
-          "Account Management",
-          style: TextStyle(color: kBlue),
-        ),
-      ),
-      body: Center(
-        child: Text(
-          "Account management features go here.",
-          style: TextStyle(fontSize: 16, color: kBlue),
-        ),
-      ),
+      bottomNavigationBar: CustomBottomNavBar(), // Re-added the bottom navigation bar
     );
   }
 }
