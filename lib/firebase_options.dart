@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '886106181787',
     projectId: 'talipapa-ef93a',
     storageBucket: 'talipapa-ef93a.firebasestorage.app',
-    iosBundleId: 'com.example.coolapp',
+    iosBundleId: 'com.example.Talipapa',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '886106181787',
     projectId: 'talipapa-ef93a',
     storageBucket: 'talipapa-ef93a.firebasestorage.app',
-    iosBundleId: 'com.example.coolapp',
+    iosBundleId: 'com.example.Talipapa',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

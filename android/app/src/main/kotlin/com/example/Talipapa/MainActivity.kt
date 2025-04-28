@@ -1,4 +1,4 @@
-package com.example.coolapp
+package com.example.Talipapa
 
 import io.flutter.embedding.android.FlutterActivity
 
