@@ -1,3 +1,4 @@
+import 'package:Talipapa/tutorial_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -48,6 +49,8 @@ class _HomePageState extends State<HomePage> {
   String selectedForecast = "One Week";
   String searchText = "";
   bool isSearching = false; // Track whether the search bar is active
+  static bool _hasShownTutorial = false; // Static variable to persist across widget rebuilds
+  bool showTutorial = false;
   int? selectedIndex;
   String? selectedSort;
   String? selectedFilter;
@@ -63,14 +66,32 @@ class _HomePageState extends State<HomePage> {
   List<Map<String, dynamic>> filteredCommodities = [];
   List<String> favoriteCommodities = []; // List to store favorite commodities
   List<String> displayedCommoditiesNames = []; // List to manage displayed commodities
+  bool isHoldMode = false; // Track whether the app is in "hold mode"
+  Set<String> heldCommodities = {}; // Track selected commodities in "hold mode"
 
   @override
   void initState() {
     super.initState();
+    _checkFirstLaunch();
     fetchCommodities(); // Fetch data when the widget is initialized
     loadDisplayedCommodities(); // Load displayed commodities from local storage
     loadFavorites(); // Load favorite commodities from persistent storage
     loadState(); // Load saved state (filters, sorts, etc.)
+  }
+
+  Future<void> _checkFirstLaunch() async {
+    // If we've already shown the tutorial this session, don't show it again
+    if (_hasShownTutorial) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    bool shouldShowTutorial = prefs.getBool('showTutorial') ?? true;
+    
+    if (mounted && shouldShowTutorial) {
+      setState(() {
+        showTutorial = true;
+        _hasShownTutorial = true;  // Mark tutorial as shown for this session
+      });
+    }
   }
 
   @override
@@ -85,9 +106,15 @@ class _HomePageState extends State<HomePage> {
       if (selectedFilter == "None" || selectedFilter == null) {
         filteredCommodities = List.from(commodities);
       } else if (selectedFilter == "Favorites") {
-        filteredCommodities = commodities
-            .where((commodity) => favoriteCommodities.contains(commodity['commodity'].toString()))
-            .toList();
+        filteredCommodities = commodities.where((commodity) {
+          final commodityName = commodity['commodity'].toString();
+          final commodityType = commodity['commodity_type'].toString();
+          if (commodityType.toLowerCase().contains('rice')) {
+            return favoriteCommodities.contains('${commodityName}_${commodityType}');
+          } else {
+            return favoriteCommodities.contains(commodityName);
+          }
+        }).toList();
       } else {
         filteredCommodities = commodities.where((commodity) {
           final commodityType = commodity['commodity_type']?.toString().toLowerCase() ?? "";
@@ -112,9 +139,15 @@ class _HomePageState extends State<HomePage> {
         if (selectedFilter == "None" || selectedFilter == null) {
           filteredCommodities = List.from(commodities);
         } else if (selectedFilter == "Favorites") {
-          filteredCommodities = commodities
-              .where((commodity) => favoriteCommodities.contains(commodity['commodity'].toString()))
-              .toList();
+          filteredCommodities = commodities.where((commodity) {
+            final commodityName = commodity['commodity'].toString();
+            final commodityType = commodity['commodity_type'].toString();
+            if (commodityType.toLowerCase().contains('rice')) {
+              return favoriteCommodities.contains('${commodityName}_${commodityType}');
+            } else {
+              return favoriteCommodities.contains(commodityName);
+            }
+          }).toList();
         } else {
           filteredCommodities = commodities.where((commodity) {
             final commodityType = commodity['commodity_type']?.toString().toLowerCase() ?? "";
@@ -184,9 +217,15 @@ class _HomePageState extends State<HomePage> {
     if (selectedFilter == null) {
       filteredCommodities = List.from(commodities);
     } else if (selectedFilter == "Favorites") {
-      filteredCommodities = commodities
-          .where((commodity) => favoriteCommodities.contains(commodity['commodity'].toString()))
-          .toList();
+      filteredCommodities = commodities.where((commodity) {
+        final commodityName = commodity['commodity'].toString();
+        final commodityType = commodity['commodity_type'].toString();
+        if (commodityType.toLowerCase().contains('rice')) {
+          return favoriteCommodities.contains('${commodityName}_${commodityType}');
+        } else {
+          return favoriteCommodities.contains(commodityName);
+        }
+      }).toList();
     } else {
       filteredCommodities = commodities.where((commodity) {
         final commodityType = commodity['commodity_type']?.toString().toLowerCase() ?? "";
@@ -219,42 +258,54 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            // Helper to check/uncheck all commodities
-            void toggleAllFavorites(bool checkAll) {
-              setState(() {
-                if (checkAll) {
-                  favoriteCommodities = commodities.map((c) => c['commodity'].toString()).toList();
-                } else {
-                  favoriteCommodities.clear();
-                }
-              });
-              // Save favorites and refresh the list
-              saveFavorites();
-              this.setState(() {
-                if (selectedFilter == "Favorites") {
-                  filteredCommodities = commodities
-                      .where((commodity) => favoriteCommodities.contains(commodity['commodity'].toString()))
-                      .toList();
-                }
-              });
-            }
-
             return AlertDialog(
               title: Text("Select Favorites"),
               content: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8, // 80% of screen width
-                height: MediaQuery.of(context).size.height * 0.4, // 40% of screen height
+                width: MediaQuery.of(context).size.width * 0.8,
+                height: MediaQuery.of(context).size.height * 0.6,
                 child: Column(
                   children: [
+                    // Search TextField at the top
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search items...',
+                          prefixIcon: Icon(Icons.search, color: kBlue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: kBlue),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            searchText = value.toLowerCase();
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    // Check/Uncheck All buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         TextButton(
-                          onPressed: () => toggleAllFavorites(true), // Check all
+                          onPressed: () {
+                            setState(() {
+                              favoriteCommodities = getAllCommodities();
+                            });
+                            saveFavorites();
+                          },
                           child: Text("Check All"),
                         ),
                         TextButton(
-                          onPressed: () => toggleAllFavorites(false), // Uncheck all
+                          onPressed: () {
+                            setState(() {
+                              favoriteCommodities.clear();
+                            });
+                            saveFavorites();
+                          },
                           child: Text("Uncheck All"),
                         ),
                       ],
@@ -262,29 +313,63 @@ class _HomePageState extends State<HomePage> {
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
-                          children: commodities.map((commodity) {
-                            final commodityName = commodity['commodity'].toString();
-                            return CheckboxListTile(
-                              title: Text(commodityName),
-                              value: favoriteCommodities.contains(commodityName),
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  if (value == true) {
-                                    favoriteCommodities.add(commodityName);
-                                  } else {
-                                    favoriteCommodities.remove(commodityName);
-                                  }
-                                });
-                                // Save favorites and refresh the list
-                                saveFavorites();
-                                this.setState(() {
-                                  if (selectedFilter == "Favorites") {
-                                    filteredCommodities = commodities
-                                        .where((commodity) => favoriteCommodities.contains(commodity['commodity'].toString()))
-                                        .toList();
-                                  }
-                                });
-                              },
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: COMMODITY_TYPES.entries.map((entry) {
+                            // Filter items based on search text
+                            final filteredItems = entry.value.where((item) => 
+                              item.toLowerCase().contains(searchText)).toList();
+                            
+                            // Only show category if it has matching items
+                            return filteredItems.isEmpty ? SizedBox() : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        entry.key,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: kBlue,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${filteredItems.length} items',
+                                        style: TextStyle(
+                                          color: Colors.grey,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                ...filteredItems.map((item) {
+                                  // Create a unique identifier for rice items
+                                  final String itemId = entry.key.toLowerCase().contains('rice') 
+                                      ? '${item}_${entry.key}'  // Combine item name with type for rice
+                                      : item;  // Use just the item name for non-rice items
+                                  
+                                  return CheckboxListTile(
+                                    title: Text(item),  // Show only the item name
+                                    dense: true,
+                                    value: favoriteCommodities.contains(itemId), // or displayedCommoditiesNames
+                                    onChanged: (bool? value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          favoriteCommodities.add(itemId); // or displayedCommoditiesNames
+                                        } else {
+                                          favoriteCommodities.remove(itemId); // or displayedCommoditiesNames
+                                        }
+                                      });
+                                      saveFavorites(); // or saveDisplayedCommodities
+                                    },
+                                  );
+                                }).toList(),
+                                Divider(),
+                              ],
                             );
                           }).toList(),
                         ),
@@ -312,39 +397,54 @@ class _HomePageState extends State<HomePage> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            // Helper to check/uncheck all commodities
-            void toggleAll(bool checkAll) {
-              setState(() {
-                if (checkAll) {
-                  displayedCommoditiesNames = commodities.map((c) => c['commodity'].toString()).toList();
-                } else {
-                  displayedCommoditiesNames.clear();
-                }
-              });
-              // Refresh the list after toggling
-              this.setState(() {
-                filteredCommodities = commodities
-                    .where((commodity) => displayedCommoditiesNames.contains(commodity['commodity'].toString()))
-                    .toList();
-              });
-            }
-
             return AlertDialog(
               title: Text("Manage Commodities"),
               content: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8, // 80% of screen width
-                height: MediaQuery.of(context).size.height * 0.4, // 40% of screen height
+                width: MediaQuery.of(context).size.width * 0.8,
+                height: MediaQuery.of(context).size.height * 0.6,
                 child: Column(
                   children: [
+                    // Search TextField at the top
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Search items...',
+                          prefixIcon: Icon(Icons.search, color: kBlue),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: kBlue),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            searchText = value.toLowerCase();
+                          });
+                        },
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    // Check/Uncheck All buttons
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         TextButton(
-                          onPressed: () => toggleAll(true), // Check all
+                          onPressed: () {
+                            setState(() {
+                              displayedCommoditiesNames = getAllCommodities();
+                            });
+                            saveDisplayedCommodities();
+                          },
                           child: Text("Check All"),
                         ),
                         TextButton(
-                          onPressed: () => toggleAll(false), // Uncheck all
+                          onPressed: () {
+                            setState(() {
+                              displayedCommoditiesNames.clear();
+                            });
+                            saveDisplayedCommodities();
+                          },
                           child: Text("Uncheck All"),
                         ),
                       ],
@@ -352,26 +452,51 @@ class _HomePageState extends State<HomePage> {
                     Expanded(
                       child: SingleChildScrollView(
                         child: Column(
-                          children: commodities.map((commodity) {
-                            final commodityName = commodity['commodity'].toString();
-                            return CheckboxListTile(
-                              title: Text(commodityName),
-                              value: displayedCommoditiesNames.contains(commodityName),
-                              onChanged: (bool? value) {
-                                setState(() {
-                                  if (value == true) {
-                                    displayedCommoditiesNames.add(commodityName);
-                                  } else {
-                                    displayedCommoditiesNames.remove(commodityName);
-                                  }
-                                });
-                                // Refresh the list after updating displayed commodities
-                                this.setState(() {
-                                  filteredCommodities = commodities
-                                      .where((commodity) => displayedCommoditiesNames.contains(commodity['commodity'].toString()))
-                                      .toList();
-                                });
-                              },
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: COMMODITY_TYPES.entries.map((entry) {
+                            // Filter items based on search text
+                            final filteredItems = entry.value.where((item) => 
+                              item.toLowerCase().contains(searchText)).toList();
+                            
+                            // Only show category if it has matching items
+                            return filteredItems.isEmpty ? SizedBox() : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(
+                                    entry.key,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: kBlue,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                ...filteredItems.map((item) {
+                                  // Create a unique identifier for rice items
+                                  final String itemId = entry.key.toLowerCase().contains('rice') 
+                                      ? '${item}_${entry.key}'  // Combine item name with type for rice
+                                      : item;  // Use just the item name for non-rice items
+                                  
+                                  return CheckboxListTile(
+                                    title: Text(item),  // Show only the item name
+                                    dense: true,
+                                    value: displayedCommoditiesNames.contains(itemId), // or displayedCommoditiesNames
+                                    onChanged: (bool? value) {
+                                      setState(() {
+                                        if (value == true) {
+                                          displayedCommoditiesNames.add(itemId); // or displayedCommoditiesNames
+                                        } else {
+                                          displayedCommoditiesNames.remove(itemId); // or displayedCommoditiesNames
+                                        }
+                                      });
+                                      saveDisplayedCommodities(); // or saveDisplayedCommodities
+                                    },
+                                  );
+                                }).toList(),
+                                Divider(),
+                              ],
                             );
                           }).toList(),
                         ),
@@ -383,14 +508,7 @@ class _HomePageState extends State<HomePage> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    // Save the updated list to local storage
                     saveDisplayedCommodities();
-                    // Ensure the list is refreshed when the dialog is closed
-                    setState(() {
-                      filteredCommodities = commodities
-                          .where((commodity) => displayedCommoditiesNames.contains(commodity['commodity'].toString()))
-                          .toList();
-                    });
                     Navigator.pop(context);
                   },
                   child: Text("Done"),
@@ -414,336 +532,398 @@ class _HomePageState extends State<HomePage> {
                 .contains(searchText.toLowerCase());
           }).toList();
 
-    return GestureDetector(
-      onTap: () {
-        // Dismiss the search bar when tapping outside
-        if (_searchFocusNode.hasFocus) {
-          FocusScope.of(context).unfocus(); // Close the keyboard
-          setState(() {
-            isSearching = false; // Revert to the search icon
-          });
-        }
-      },
-      behavior: HitTestBehavior.opaque, // Ensure taps outside are detected
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: kGreen,
-          title: Row(
-            crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically
-            children: [
-              if (selectedCommodity != null) ...[
-                CircleAvatar(
-                  radius: 16,
-                  backgroundImage: AssetImage(
-                    selectedCommodity != null
-                        ? 'assets/commodity_images/${getCommodityImage(selectedCommodity!, commodityType: null, specification: null)}'
-                        : 'assets/commodity_images/default_image.jpg',
-                  ),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: kGreen,
+        title: Row(
+          crossAxisAlignment: CrossAxisAlignment.center, // Align items vertically
+          children: [
+            if (selectedCommodity != null) ...[
+              CircleAvatar(
+                radius: 16,
+                backgroundImage: AssetImage(
+                  selectedCommodity != null
+                      ? 'assets/commodity_images/${getCommodityImage(selectedCommodity!, commodityType: null, specification: null)}'
+                      : 'assets/commodity_images/default_image.jpg',
                 ),
-                SizedBox(width: 8), // Add spacing between the image and the text
-                Expanded( // Ensure the text doesn't overflow
-                  child: Text(
-                    selectedCommodity!,
-                    style: TextStyle(
-                      fontFamily: 'CourierPrime',
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                      color: kBlue,
-                    ),
-                    overflow: TextOverflow.ellipsis, // Handle long text gracefully
-                  ),
-                ),
-              ] else ...[
-                Text(
-                  "Select a Commodity",
+              ),
+              SizedBox(width: 8), // Add spacing between the image and the text
+              Expanded( // Ensure the text doesn't overflow
+                child: Text(
+                  selectedCommodity!,
                   style: TextStyle(
                     fontFamily: 'CourierPrime',
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
                     color: kBlue,
                   ),
+                  overflow: TextOverflow.ellipsis, // Handle long text gracefully
                 ),
-              ],
+              ),
+            ] else ...[
+              Text(
+                "Select a Commodity",
+                style: TextStyle(
+                  fontFamily: 'CourierPrime',
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: kBlue,
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          if (isSearching)
+            Container(
+              width: MediaQuery.of(context).size.width * 0.3, // Adjusted width for the search bar
+              margin: EdgeInsets.only(right: 8),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocusNode, // Attach the FocusNode
+                onChanged: (value) {
+                  setState(() {
+                    searchText = value;
+                  });
+                },
+                decoration: InputDecoration(
+                  hintText: 'Search...',
+                  hintStyle: TextStyle(color: kBlue, fontSize: 16),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: kBlue),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: kBlue),
+                  ),
+                  isDense: true,
+                  contentPadding: EdgeInsets.only(left: 8, bottom: 2), // Adjust padding for better alignment
+                ),
+                style: TextStyle(color: kBlue, fontSize: 16),
+              ),
+            )
+          else
+            IconButton(
+              icon: Icon(Icons.search, color: kBlue),
+              onPressed: () {
+                setState(() {
+                  isSearching = true; // Activate the search bar
+                });
+                _searchFocusNode.requestFocus(); // Automatically focus the search bar
+              },
+            ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: kPink.withOpacity(0.6),
+                      blurRadius: 12,
+                      offset: Offset(0, 12),
+                    )
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      height: 200,
+                      width: MediaQuery.of(context).size.width * 0.85,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(child: Text("Forecast Graph")),
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Text(
+                          "See:",
+                          style: TextStyle(
+                            fontFamily: 'CourierPrime',
+                            fontWeight: FontWeight.bold,
+                            color: kBlue,
+                            fontSize: 14,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _forecastButton("One Week"),
+                                _forecastButton("Two Weeks"),
+                                _forecastButton("One Month"),
+                                _forecastButton("Two Months"),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Sort by Dropdown
+                        Flexible(
+                          flex: 1,
+                          child: DropdownButton<String>(
+                            value: selectedSort,
+                            hint: Text(
+                              "Sort by",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: kBlue,
+                                fontSize: 12,
+                              ),
+                            ),
+                            items: [
+                              "None",
+                              "Name",
+                              "Price (Low to High)",
+                              "Price (High to Low)"
+                            ].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(
+                                  value,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                    color: kBlue, // Match the color with "Filter by"
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                selectedSort = newValue;
+
+                                if (newValue == "Name") {
+                                  filteredCommodities.sort((a, b) => a['commodity'].toString().compareTo(b['commodity'].toString()));
+                                } else if (newValue == "Price (Low to High)") {
+                                  filteredCommodities.sort((a, b) {
+                                    double priceA = double.tryParse(a['weekly_average_price'].toString()) ?? 0.0;
+                                    double priceB = double.tryParse(b['weekly_average_price'].toString()) ?? 0.0;
+                                    return priceA.compareTo(priceB);
+                                  });
+                                } else if (newValue == "Price (High to Low)") {
+                                  filteredCommodities.sort((a, b) {
+                                    double priceA = double.tryParse(a['weekly_average_price'].toString()) ?? 0.0;
+                                    double priceB = double.tryParse(b['weekly_average_price'].toString()) ?? 0.0;
+                                    return priceB.compareTo(priceA);
+                                  });
+                                } else {
+                                  filteredCommodities = List.from(commodities);
+                                  selectedSort = null;
+                                }
+                              });
+                            },
+                            dropdownColor: Colors.white, // Match the dropdown background color
+                            isExpanded: true,
+                            menuMaxHeight: 200, // Limit the dropdown height to make it scrollable
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        // Filter by Dropdown
+                        Flexible(
+                          flex: 1,
+                          child: DropdownButton<String>(
+                            value: selectedFilter,
+                            hint: Text(
+                              "Filter by",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: kBlue,
+                                fontSize: 12,
+                              ),
+                            ),
+                            items: [
+                              "None",
+                              "Favorites",
+                              "KADIWA RICE-FOR-ALL",
+                              "IMPORTED COMMERCIAL RICE",
+                              "LOCAL COMMERCE RICE",
+                              "CORN",
+                              "FISH",
+                              "LIVESTOCK & POULTRY PRODUCTS",
+                              "LOWLAND VEGETABLES",
+                              "HIGHLAND VEGETABLES",
+                              "SPICES",
+                              "FRUITS",
+                              "OTHER BASIC COMMODITIES"
+                            ].map((String value) {
+                              return DropdownMenuItem<String>(
+                                value: value,
+                                child: Text(
+                                  value,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 12,
+                                    color: kBlue, // Match the color with "Sort by"
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {
+                              setState(() {
+                                if (newValue == "None") {
+                                  selectedFilter = null; // Reset to default
+                                  filteredCommodities = List.from(commodities); // Show all commodities
+                                } else if (newValue == "Favorites") {
+                                  selectedFilter = newValue;
+                                  filteredCommodities = commodities.where((commodity) {
+                                    final commodityName = commodity['commodity'].toString();
+                                    final commodityType = commodity['commodity_type'].toString();
+                                    if (commodityType.toLowerCase().contains('rice')) {
+                                      return favoriteCommodities.contains('${commodityName}_${commodityType}');
+                                    } else {
+                                      return favoriteCommodities.contains(commodityName);
+                                    }
+                                  }).toList();
+                                } else {
+                                  selectedFilter = newValue;
+                                  filteredCommodities = commodities.where((commodity) {
+                                    final commodityType = commodity['commodity_type']?.toString().toLowerCase() ?? "";
+                                    return commodityType == newValue?.toLowerCase();
+                                  }).toList();
+                                }
+                                saveState(); // Save the updated state
+                                print("Filtered Commodities after filter change: ${filteredCommodities.length}");
+                              });
+                            },
+                            dropdownColor: Colors.white,
+                            isExpanded: true,
+                            menuMaxHeight: 200, // Limit the dropdown height to make it scrollable
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(Icons.star, color: kPink),
+                          onPressed: showFavoritesDialog,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.add, color: kPink),
+                          onPressed: showAddDialog,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: displayedCommodities.isEmpty
+                    ? Center(
+                        child: Text(
+                          "No commodities found.",
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.only(bottom: 70),
+                        itemCount: displayedCommodities.length,
+                        itemBuilder: (context, index) {
+                          final commodity = displayedCommodities[index];
+                          return GestureDetector(
+                            onLongPress: () {
+                              setState(() {
+                                isHoldMode = true; // Enter "hold mode"
+                                heldCommodities.add(commodity['commodity']); // Add to held commodities
+                                selectedCommodity = null; // Immediately unselect the commodity
+                              });
+                            },
+                            onTap: () {
+                              if (isHoldMode) {
+                                setState(() {
+                                  final commodityName = commodity['commodity'];
+                                  if (heldCommodities.contains(commodityName)) {
+                                    heldCommodities.remove(commodityName); // Deselect if already selected
+                                    if (heldCommodities.isEmpty) {
+                                      isHoldMode = false; // Exit "hold mode" if no commodities are selected
+                                    }
+                                  } else {
+                                    heldCommodities.add(commodityName); // Select the commodity
+                                  }
+                                });
+                              } else {
+                                setState(() {
+                                  if (selectedCommodity == commodity['commodity']) {
+                                    selectedCommodity = null; // Unselect the commodity if it's already selected
+                                  } else {
+                                    selectedCommodity = commodity['commodity']; // Select the clicked commodity
+                                  }
+                                });
+                              }
+                            },
+                            child: _buildCommodityItem(
+                              commodity,
+                              isSelected: selectedCommodity == commodity['commodity'],
+                              isHeld: heldCommodities.contains(commodity['commodity']),
+                              index: index,
+                            ),
+                          );
+                        },
+                      ),
+              ),
             ],
           ),
-          actions: [
-            if (isSearching)
-              Container(
-                width: MediaQuery.of(context).size.width * 0.3, // Adjusted width for the search bar
-                margin: EdgeInsets.only(right: 8),
-                child: TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode, // Attach the FocusNode
-                  onChanged: (value) {
+          if (isHoldMode)
+            Positioned(
+              top: 7, // Adjusted position to move closer to the bottom of the header
+              right: 7, // Align to the right
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.white,
+                child: InkWell(
+                  onTap: () {
                     setState(() {
-                      searchText = value;
+                      heldCommodities.clear(); // Clear all selected commodities
+                      isHoldMode = false; // Exit "hold mode"
                     });
                   },
-                  decoration: InputDecoration(
-                    hintText: 'Search...',
-                    hintStyle: TextStyle(color: kBlue, fontSize: 16),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: kBlue),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Text(
+                      "Deselect All",
+                      style: TextStyle(
+                        color: kPink,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
-                    focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: kBlue),
-                    ),
-                    isDense: true,
-                    contentPadding: EdgeInsets.only(left: 8, bottom: 2), // Adjust padding for better alignment
                   ),
-                  style: TextStyle(color: kBlue, fontSize: 16),
                 ),
-              )
-            else
-              IconButton(
-                icon: Icon(Icons.search, color: kBlue),
-                onPressed: () {
-                  setState(() {
-                    isSearching = true; // Activate the search bar
-                  });
-                  _searchFocusNode.requestFocus(); // Automatically focus the search bar
-                },
               ),
-          ],
-        ),
-        body: Stack(
-          children: [
-            Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: kPink.withOpacity(0.6),
-                        blurRadius: 12,
-                        offset: Offset(0, 12),
-                      )
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Container(
-                        height: 200,
-                        width: MediaQuery.of(context).size.width * 0.85,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 6,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Center(child: Text("Forecast Graph")),
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Text(
-                            "See:",
-                            style: TextStyle(
-                              fontFamily: 'CourierPrime',
-                              fontWeight: FontWeight.bold,
-                              color: kBlue,
-                              fontSize: 14,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                children: [
-                                  _forecastButton("One Week"),
-                                  _forecastButton("Two Weeks"),
-                                  _forecastButton("One Month"),
-                                  _forecastButton("Two Months"),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Sort by Dropdown
-                          Flexible(
-                            flex: 1,
-                            child: DropdownButton<String>(
-                              value: selectedSort,
-                              hint: Text(
-                                "Sort by",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: kBlue,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              items: [
-                                "None",
-                                "Name",
-                                "Price (Low to High)",
-                                "Price (High to Low)"
-                              ].map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(
-                                    value,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
-                                      color: kBlue, // Match the color with "Filter by"
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  selectedSort = newValue;
-
-                                  if (newValue == "Name") {
-                                    filteredCommodities.sort((a, b) => a['commodity'].toString().compareTo(b['commodity'].toString()));
-                                  } else if (newValue == "Price (Low to High)") {
-                                    filteredCommodities.sort((a, b) {
-                                      double priceA = double.tryParse(a['weekly_average_price'].toString()) ?? 0.0;
-                                      double priceB = double.tryParse(b['weekly_average_price'].toString()) ?? 0.0;
-                                      return priceA.compareTo(priceB);
-                                    });
-                                  } else if (newValue == "Price (High to Low)") {
-                                    filteredCommodities.sort((a, b) {
-                                      double priceA = double.tryParse(a['weekly_average_price'].toString()) ?? 0.0;
-                                      double priceB = double.tryParse(b['weekly_average_price'].toString()) ?? 0.0;
-                                      return priceB.compareTo(priceA);
-                                    });
-                                  } else {
-                                    filteredCommodities = List.from(commodities);
-                                    selectedSort = null;
-                                  }
-                                });
-                              },
-                              dropdownColor: Colors.white, // Match the dropdown background color
-                              isExpanded: true,
-                              menuMaxHeight: 200, // Limit the dropdown height to make it scrollable
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          // Filter by Dropdown
-                          Flexible(
-                            flex: 1,
-                            child: DropdownButton<String>(
-                              value: selectedFilter,
-                              hint: Text(
-                                "Filter by",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                  color: kBlue,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              items: [
-                                "None",
-                                "Favorites",
-                                "KADIWA RICE-FOR-ALL",
-                                "IMPORTED COMMERCIAL RICE",
-                                "LOCAL COMMERCE RICE",
-                                "CORN",
-                                "FISH",
-                                "LIVESTOCK & POULTRY PRODUCTS",
-                                "LOWLAND VEGETABLES",
-                                "HIGHLAND VEGETABLES",
-                                "SPICES",
-                                "FRUITS",
-                                "OTHER BASIC COMMODITIES"
-                              ].map((String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(
-                                    value,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
-                                      color: kBlue, // Match the color with "Sort by"
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                setState(() {
-                                  if (newValue == "None") {
-                                    selectedFilter = null; // Reset to default
-                                    filteredCommodities = List.from(commodities); // Show all commodities
-                                  } else if (newValue == "Favorites") {
-                                    selectedFilter = newValue;
-                                    filteredCommodities = commodities
-                                        .where((commodity) => favoriteCommodities.contains(commodity['commodity'].toString()))
-                                        .toList();
-                                  } else {
-                                    selectedFilter = newValue;
-                                    filteredCommodities = commodities.where((commodity) {
-                                      final commodityType = commodity['commodity_type']?.toString().toLowerCase() ?? "";
-                                      return commodityType == newValue?.toLowerCase();
-                                    }).toList();
-                                  }
-                                  saveState(); // Save the updated state
-                                  print("Filtered Commodities after filter change: ${filteredCommodities.length}");
-                                });
-                              },
-                              dropdownColor: Colors.white,
-                              isExpanded: true,
-                              menuMaxHeight: 200, // Limit the dropdown height to make it scrollable
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          IconButton(
-                            icon: Icon(Icons.star, color: kPink),
-                            onPressed: showFavoritesDialog,
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.add, color: kPink),
-                            onPressed: showAddDialog,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: displayedCommodities.isEmpty
-                      ? Center(
-                          child: Text(
-                            "No commodities found.",
-                            style: TextStyle(fontSize: 16, color: Colors.grey),
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: EdgeInsets.only(bottom: 70),
-                          itemCount: displayedCommodities.length,
-                          itemBuilder: (context, index) {
-                            final commodity = displayedCommodities[index];
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedCommodity = commodity['commodity']; // Update selectedCommodity
-                                });
-                              },
-                              child: _buildCommodityItem(commodity, selectedCommodity == commodity['commodity'], index),
-                            );
-                          },
-                        ),
-                ),
-              ],
             ),
-          ],
-        ),
-        bottomNavigationBar: CustomBottomNavBar(), // Use the reusable bottom navigation bar
+          if (showTutorial)
+            TutorialOverlay(
+              onClose: () {
+                setState(() {
+                  showTutorial = false;
+                });
+              },
+            ),
+        ],
       ),
+      bottomNavigationBar: CustomBottomNavBar(), // Use the reusable bottom navigation bar
     );
   }
 
@@ -777,7 +957,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildCommodityItem(Map<String, dynamic> commodity, bool isSelected, int index) {
+  Widget _buildCommodityItem(Map<String, dynamic> commodity, {required bool isSelected, required bool isHeld, required int index}) {
     final String commodityName = commodity['commodity'] ?? "Unknown Commodity";
     final String unit = commodity['unit'] ?? ""; // e.g., "kg"
     final String commodityType = commodity['commodity_type'] ?? "Unknown Type";
@@ -795,15 +975,22 @@ class _HomePageState extends State<HomePage> {
       duration: Duration(milliseconds: 200),
       height: 100,
       decoration: BoxDecoration(
-        gradient: isSelected
+        gradient: isHeld
             ? LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [kGreen, Color(0xFFEBF8BB)],
+                colors: [kPink, Color(0xFFFFE4E1)],
                 stops: [0.0, 0.56],
               )
-            : null,
-        color: isSelected ? null : backgroundColor, // Use alternating background color
+            : isSelected
+                ? LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [kGreen, Color(0xFFEBF8BB)],
+                    stops: [0.0, 0.56],
+                  )
+                : null,
+        color: isSelected || isHeld ? null : backgroundColor, // Use alternating background color
         border: Border(
           top: BorderSide(color: kDivider),
           bottom: BorderSide(color: kDivider),

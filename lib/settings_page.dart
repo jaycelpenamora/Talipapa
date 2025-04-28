@@ -1,3 +1,4 @@
+import 'package:Talipapa/tutorial_overlay.dart';
 import 'package:flutter/material.dart';
 import 'constants.dart';
 import 'custom_bottom_navbar.dart'; // Import the custom bottom navigation bar
@@ -10,7 +11,6 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool notificationsEnabled = true; // Default value for notifications
-  bool darkModeEnabled = false; // Default value for dark mode
 
   @override
   void initState() {
@@ -22,14 +22,12 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       notificationsEnabled = prefs.getBool('notificationsEnabled') ?? true;
-      darkModeEnabled = prefs.getBool('darkModeEnabled') ?? false;
     });
   }
 
   Future<void> saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('notificationsEnabled', notificationsEnabled);
-    await prefs.setBool('darkModeEnabled', darkModeEnabled);
   }
 
   Future<void> resetData() async {
@@ -37,7 +35,6 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.clear(); // Clear all saved data
     setState(() {
       notificationsEnabled = true;
-      darkModeEnabled = false;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("All data has been reset.")),
@@ -71,14 +68,28 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<void> _showTutorial() async {
+    final prefs = await SharedPreferences.getInstance();
+    bool shouldShowTutorial = prefs.getBool('showTutorial') ?? true;
+    
+    if (mounted && shouldShowTutorial) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => TutorialOverlay(
+          onClose: () => Navigator.of(context).pop(),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Dynamically set background and text colors based on darkModeEnabled
-    final backgroundColor = darkModeEnabled ? kDarkAltGray : kGreen;
-    final textColor = darkModeEnabled ? Colors.white : kBlue;
+    final backgroundColor = kGreen; // Static background color
+    final textColor = kBlue; // Static text color
 
     return Scaffold(
-      backgroundColor: backgroundColor, // Dynamic background color
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         backgroundColor: backgroundColor,
         elevation: 0,
@@ -112,23 +123,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
 
-            // Dark Mode Toggle
-            ListTile(
-              title: Text(
-                "Dark Mode",
-                style: TextStyle(fontSize: 18, color: textColor),
-              ),
-              trailing: Switch(
-                value: darkModeEnabled,
-                onChanged: (bool value) {
-                  setState(() {
-                    darkModeEnabled = value;
-                  });
-                  saveSettings(); // Save the updated setting
-                },
-              ),
-            ),
-
             // Reset Data
             ListTile(
               title: Text(
@@ -138,6 +132,13 @@ class _SettingsPageState extends State<SettingsPage> {
               onTap: () {
                 showResetConfirmationDialog(); // Show confirmation dialog
               },
+            ),
+            ListTile(
+              title: Text(
+                "View Tutorial",
+                style: TextStyle(fontSize: 18, color: textColor),
+              ),
+              onTap: _showTutorial,
             ),
           ],
         ),
