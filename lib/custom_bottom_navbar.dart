@@ -39,7 +39,7 @@ class CustomBottomNavBar extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => FishPage(),
+                    pageBuilder: (_, __, ___) => ChatbotPage(),
                     transitionDuration: Duration.zero, // No animation
                     reverseTransitionDuration: Duration.zero, // No animation
                   ),
