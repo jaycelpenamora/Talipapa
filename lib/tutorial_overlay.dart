@@ -4,8 +4,13 @@ import 'constants.dart';
 
 class TutorialOverlay extends StatefulWidget {
   final VoidCallback onClose;
+  final bool showFromSettings;
 
-  const TutorialOverlay({super.key, required this.onClose});
+  const TutorialOverlay({
+    super.key, 
+    required this.onClose, 
+    this.showFromSettings = false,
+  });
 
   @override
   State<TutorialOverlay> createState() => _TutorialOverlayState();
@@ -15,15 +20,28 @@ class _TutorialOverlayState extends State<TutorialOverlay> {
   bool dontShowAgain = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadPreference();
+  }
+
+  Future<void> _loadPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      dontShowAgain = prefs.getBool('skipLaunchTutorial') ?? false;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async => false,
-      child: Material(  // Wrap with Material for proper overlay
+      child: Material(
         type: MaterialType.transparency,
         child: Container(
-          width: MediaQuery.of(context).size.width,  // Full width
-          height: MediaQuery.of(context).size.height, // Full height
-          color: Colors.black.withOpacity(0.7),      // Darker overlay
+          width: MediaQuery.of(context).size.width,
+          height: MediaQuery.of(context).size.height,
+          color: Colors.black.withOpacity(0.7),
           child: SafeArea(
             child: Center(
               child: Container(
@@ -81,30 +99,23 @@ class _TutorialOverlayState extends State<TutorialOverlay> {
                           children: [
                             Checkbox(
                               value: dontShowAgain,
-                              onChanged: (bool? value) {
+                              onChanged: (bool? value) async {
                                 setState(() {
                                   dontShowAgain = value ?? false;
                                 });
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.setBool('skipLaunchTutorial', dontShowAgain);
                               },
                               activeColor: kPink,
                             ),
                             Text(
-                              "Skip app launch tutorial", // Updated text
-                              style: TextStyle(
-                                color: kBlue,
-                                fontSize: 12,
-                              ),
+                              "Don't show on launch",
+                              style: TextStyle(color: kBlue, fontSize: 12),
                             ),
                           ],
                         ),
                         TextButton(
-                          onPressed: () async {
-                            if (dontShowAgain) {
-                              final prefs = await SharedPreferences.getInstance();
-                              await prefs.setBool('skipLaunchTutorial', true); // Changed key
-                            }
-                            widget.onClose();
-                          },
+                          onPressed: widget.onClose,
                           child: Text("Close", style: TextStyle(color: kPink)),
                         ),
                       ],

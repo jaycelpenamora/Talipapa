@@ -68,21 +68,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Future<void> _showTutorial() async {
-    final prefs = await SharedPreferences.getInstance();
-    bool shouldShowTutorial = prefs.getBool('showTutorial') ?? true;
-    
-    if (mounted && shouldShowTutorial) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => TutorialOverlay(
-          onClose: () => Navigator.of(context).pop(),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final backgroundColor = kGreen; // Static background color
@@ -138,7 +123,16 @@ class _SettingsPageState extends State<SettingsPage> {
                 "View Tutorial",
                 style: TextStyle(fontSize: 18, color: textColor),
               ),
-              onTap: _showTutorial,
+              onTap: () {
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (context) => TutorialOverlay(
+                    onClose: () => Navigator.of(context).pop(),
+                    showFromSettings: true, // Add this parameter to TutorialOverlay
+                  ),
+                );
+              },
             ),
           ],
         ),

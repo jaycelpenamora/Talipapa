@@ -16,7 +16,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(MyApp());
-}
+  }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -127,36 +127,28 @@ class _HomePageState extends State<HomePage> {
   // Fetch commodities from Firestore
   Future<void> fetchCommodities() async {
     try {
-      print("Fetching commodities...");
       final querySnapshot = await _firestore.collection('commodities').get();
-      if (querySnapshot.docs.isEmpty) {
-        print("⚠️ No commodities found in Firestore.");
-      }
-      setState(() {
-        commodities = querySnapshot.docs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+      final allCommodities = querySnapshot.docs
+          .map((doc) => doc.data() as Map<String, dynamic>)
+          .toList();
 
-        // Update filteredCommodities based on the current filter
-        if (selectedFilter == "None" || selectedFilter == null) {
-          filteredCommodities = List.from(commodities);
-        } else if (selectedFilter == "Favorites") {
-          filteredCommodities = commodities.where((commodity) {
-            final commodityName = commodity['commodity'].toString();
-            final commodityType = commodity['commodity_type'].toString();
-            if (commodityType.toLowerCase().contains('rice')) {
-              return favoriteCommodities.contains('${commodityName}_${commodityType}');
-            } else {
-              return favoriteCommodities.contains(commodityName);
-            }
-          }).toList();
-        } else {
-          filteredCommodities = commodities.where((commodity) {
-            final commodityType = commodity['commodity_type']?.toString().toLowerCase() ?? "";
-            return commodityType == selectedFilter?.toLowerCase();
-          }).toList();
+      setState(() {
+        // Filter by displayed commodities
+        commodities = allCommodities.where((commodity) {
+          final itemId = _getItemId(commodity);
+          return displayedCommoditiesNames.contains(itemId);
+        }).toList();
+
+        // Automatically add favorited items to displayed commodities
+        for (String favorite in favoriteCommodities) {
+          if (!displayedCommoditiesNames.contains(favorite)) {
+            displayedCommoditiesNames.add(favorite);
+          }
         }
+
+        // Apply the selected filter
+        filteredCommodities = _applyFilter(commodities, allCommodities);
       });
-      print("Commodities: ${commodities.length}");
-      print("Filtered Commodities: ${filteredCommodities.length}");
     } catch (e) {
       print("❌ Error fetching commodities: $e");
     }
@@ -194,6 +186,13 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       if (storedFavorites != null) {
         favoriteCommodities = storedFavorites;
+
+        // Automatically add favorited items to displayed commodities
+        for (String favorite in favoriteCommodities) {
+          if (!displayedCommoditiesNames.contains(favorite)) {
+            displayedCommoditiesNames.add(favorite);
+          }
+        }
       }
     });
     print("Favorites loaded: $favoriteCommodities");
@@ -260,127 +259,30 @@ class _HomePageState extends State<HomePage> {
           builder: (context, setState) {
             return AlertDialog(
               title: Text("Select Favorites"),
-              content: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8,
-                height: MediaQuery.of(context).size.height * 0.6,
-                child: Column(
-                  children: [
-                    // Search TextField at the top
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search items...',
-                          prefixIcon: Icon(Icons.search, color: kBlue),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: kBlue),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            searchText = value.toLowerCase();
-                          });
-                        },
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    // Check/Uncheck All buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              favoriteCommodities = getAllCommodities();
-                            });
-                            saveFavorites();
-                          },
-                          child: Text("Check All"),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              favoriteCommodities.clear();
-                            });
-                            saveFavorites();
-                          },
-                          child: Text("Uncheck All"),
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: COMMODITY_TYPES.entries.map((entry) {
-                            // Filter items based on search text
-                            final filteredItems = entry.value.where((item) => 
-                              item.toLowerCase().contains(searchText)).toList();
-                            
-                            // Only show category if it has matching items
-                            return filteredItems.isEmpty ? SizedBox() : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        entry.key,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: kBlue,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${filteredItems.length} items',
-                                        style: TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                ...filteredItems.map((item) {
-                                  // Create a unique identifier for rice items
-                                  final String itemId = entry.key.toLowerCase().contains('rice') 
-                                      ? '${item}_${entry.key}'  // Combine item name with type for rice
-                                      : item;  // Use just the item name for non-rice items
-                                  
-                                  return CheckboxListTile(
-                                    title: Text(item),  // Show only the item name
-                                    dense: true,
-                                    value: favoriteCommodities.contains(itemId), // or displayedCommoditiesNames
-                                    onChanged: (bool? value) {
-                                      setState(() {
-                                        if (value == true) {
-                                          favoriteCommodities.add(itemId); // or displayedCommoditiesNames
-                                        } else {
-                                          favoriteCommodities.remove(itemId); // or displayedCommoditiesNames
-                                        }
-                                      });
-                                      saveFavorites(); // or saveDisplayedCommodities
-                                    },
-                                  );
-                                }).toList(),
-                                Divider(),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              content: _buildDialogContent(
+                searchText,
+                favoriteCommodities,
+                (itemId, isChecked) {
+                  setState(() {
+                    if (isChecked) {
+                      favoriteCommodities.add(itemId);
+                      if (!displayedCommoditiesNames.contains(itemId)) {
+                        displayedCommoditiesNames.add(itemId); // Automatically check in Add Commodities
+                      }
+                    } else {
+                      favoriteCommodities.remove(itemId);
+                    }
+                  });
+                  saveFavorites();
+                },
               ),
               actions: [
                 TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () async {
+                    Navigator.pop(context);
+                    await fetchCommodities(); // Reload the list
+                    setState(() {}); // Force UI update
+                  },
                   child: Text("Done"),
                 ),
               ],
@@ -399,117 +301,26 @@ class _HomePageState extends State<HomePage> {
           builder: (context, setState) {
             return AlertDialog(
               title: Text("Manage Commodities"),
-              content: SizedBox(
-                width: MediaQuery.of(context).size.width * 0.8,
-                height: MediaQuery.of(context).size.height * 0.6,
-                child: Column(
-                  children: [
-                    // Search TextField at the top
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search items...',
-                          prefixIcon: Icon(Icons.search, color: kBlue),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: kBlue),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            searchText = value.toLowerCase();
-                          });
-                        },
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    // Check/Uncheck All buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              displayedCommoditiesNames = getAllCommodities();
-                            });
-                            saveDisplayedCommodities();
-                          },
-                          child: Text("Check All"),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() {
-                              displayedCommoditiesNames.clear();
-                            });
-                            saveDisplayedCommodities();
-                          },
-                          child: Text("Uncheck All"),
-                        ),
-                      ],
-                    ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: COMMODITY_TYPES.entries.map((entry) {
-                            // Filter items based on search text
-                            final filteredItems = entry.value.where((item) => 
-                              item.toLowerCase().contains(searchText)).toList();
-                            
-                            // Only show category if it has matching items
-                            return filteredItems.isEmpty ? SizedBox() : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text(
-                                    entry.key,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: kBlue,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                                ...filteredItems.map((item) {
-                                  // Create a unique identifier for rice items
-                                  final String itemId = entry.key.toLowerCase().contains('rice') 
-                                      ? '${item}_${entry.key}'  // Combine item name with type for rice
-                                      : item;  // Use just the item name for non-rice items
-                                  
-                                  return CheckboxListTile(
-                                    title: Text(item),  // Show only the item name
-                                    dense: true,
-                                    value: displayedCommoditiesNames.contains(itemId), // or displayedCommoditiesNames
-                                    onChanged: (bool? value) {
-                                      setState(() {
-                                        if (value == true) {
-                                          displayedCommoditiesNames.add(itemId); // or displayedCommoditiesNames
-                                        } else {
-                                          displayedCommoditiesNames.remove(itemId); // or displayedCommoditiesNames
-                                        }
-                                      });
-                                      saveDisplayedCommodities(); // or saveDisplayedCommodities
-                                    },
-                                  );
-                                }).toList(),
-                                Divider(),
-                              ],
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              content: _buildDialogContent(
+                searchText,
+                displayedCommoditiesNames,
+                (itemId, isChecked) {
+                  setState(() {
+                    if (isChecked) {
+                      displayedCommoditiesNames.add(itemId);
+                    } else {
+                      displayedCommoditiesNames.remove(itemId);
+                    }
+                  });
+                  saveDisplayedCommodities();
+                },
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    saveDisplayedCommodities();
+                  onPressed: () async {
                     Navigator.pop(context);
+                    await fetchCommodities(); // Reload the list
+                    setState(() {}); // Force UI update
                   },
                   child: Text("Done"),
                 ),
@@ -1071,4 +882,148 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+
+  List<String> getAllCommodities() {
+  List<String> allCommodities = [];
+  COMMODITY_TYPES.forEach((key, commodities) {
+    for (String commodity in commodities) {
+      if (key.toLowerCase().contains('rice')) {
+        allCommodities.add('${commodity}_$key');
+      } else {
+        allCommodities.add(commodity);
+      }
+    }
+  });
+  return allCommodities;
+}
+
+// Helper to get a unique item ID (handles rice and non-rice items)
+String _getItemId(Map<String, dynamic> commodity) {
+  final commodityName = commodity['commodity'].toString();
+  final commodityType = commodity['commodity_type'].toString();
+  return commodityType.toLowerCase().contains('rice')
+      ? '${commodityName}_${commodityType}'
+      : commodityName;
+}
+
+// Helper to apply filters
+List<Map<String, dynamic>> _applyFilter(
+    List<Map<String, dynamic>> displayedCommodities,
+    List<Map<String, dynamic>> allCommodities) {
+  if (selectedFilter == null || selectedFilter == "None") {
+    return List.from(displayedCommodities);
+  } else if (selectedFilter == "Favorites") {
+    return allCommodities.where((commodity) {
+      final itemId = _getItemId(commodity);
+      return favoriteCommodities.contains(itemId);
+    }).toList();
+  } else {
+    return displayedCommodities.where((commodity) {
+      final commodityType = commodity['commodity_type']?.toString().toLowerCase() ?? "";
+      return commodityType == selectedFilter?.toLowerCase();
+    }).toList();
+  }
+}
+
+Widget _buildDialogContent(
+    String searchText,
+    List<String> selectedItems,
+    void Function(String itemId, bool isChecked) onItemChanged) {
+  return SizedBox(
+    width: MediaQuery.of(context).size.width * 0.8,
+    height: MediaQuery.of(context).size.height * 0.6,
+    child: Column(
+      children: [
+        // Search TextField
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: TextField(
+            decoration: InputDecoration(
+              hintText: 'Search items...',
+              prefixIcon: Icon(Icons.search, color: kBlue),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: kBlue),
+              ),
+              contentPadding: EdgeInsets.symmetric(vertical: 8),
+            ),
+            onChanged: (value) {
+              setState(() {
+                searchText = value.toLowerCase();
+              });
+            },
+          ),
+        ),
+        SizedBox(height: 8),
+        // Check/Uncheck All buttons
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  selectedItems.addAll(getAllCommodities());
+                });
+              },
+              child: Text("Check All"),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  selectedItems.clear();
+                });
+              },
+              child: Text("Uncheck All"),
+            ),
+          ],
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: COMMODITY_TYPES.entries.map((entry) {
+                final filteredItems = entry.value.where((item) =>
+                    item.toLowerCase().contains(searchText)).toList();
+
+                return filteredItems.isEmpty
+                    ? SizedBox()
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              entry.key,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: kBlue,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          ...filteredItems.map((item) {
+                            final itemId = entry.key.toLowerCase().contains('rice')
+                                ? '${item}_${entry.key}'
+                                : item;
+
+                            return CheckboxListTile(
+                              title: Text(item),
+                              dense: true,
+                              value: selectedItems.contains(itemId),
+                              onChanged: (bool? value) {
+                                onItemChanged(itemId, value ?? false);
+                              },
+                            );
+                          }).toList(),
+                          Divider(),
+                        ],
+                      );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
