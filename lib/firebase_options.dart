@@ -41,48 +41,48 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAyt5bznWm5Kmad2Jp45gD0akUAlbY-07Q',
-    appId: '1:886106181787:web:1d05b986c43142611df63e',
-    messagingSenderId: '886106181787',
-    projectId: 'talipapa-ef93a',
-    authDomain: 'talipapa-ef93a.firebaseapp.com',
-    storageBucket: 'talipapa-ef93a.firebasestorage.app',
-    measurementId: 'G-LCLXHQTNTS',
+    apiKey: 'AIzaSyC0VWeWu3tIKzBWKWUbHYiUnhPZyVOFpG4',
+    appId: '1:255870757274:web:73dfbaec748ff882ae7223',
+    messagingSenderId: '255870757274',
+    projectId: 'talipapa-4777f',
+    authDomain: 'talipapa-4777f.firebaseapp.com',
+    storageBucket: 'talipapa-4777f.firebasestorage.app',
+    measurementId: 'G-ZJ9N8E6EPP',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAmZD4h7Gc3wCkdGyUe4Q9qAUYpxB7gw0k',
-    appId: '1:886106181787:android:5bc506839b0165fd1df63e',
-    messagingSenderId: '886106181787',
-    projectId: 'talipapa-ef93a',
-    storageBucket: 'talipapa-ef93a.firebasestorage.app',
+    apiKey: 'AIzaSyATPBYKlzMbJR4JNYPDh-FzhykLXXs1W24',
+    appId: '1:255870757274:android:a43e38ee22b1fd78ae7223',
+    messagingSenderId: '255870757274',
+    projectId: 'talipapa-4777f',
+    storageBucket: 'talipapa-4777f.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB4jFm5fETu-NQa9uIQMWTpQeL7aqcLXiQ',
-    appId: '1:886106181787:ios:8da463a025e304cb1df63e',
-    messagingSenderId: '886106181787',
-    projectId: 'talipapa-ef93a',
-    storageBucket: 'talipapa-ef93a.firebasestorage.app',
+    apiKey: 'AIzaSyAIUbRyBjaSmRxd35x9ZtRcXAk04fbpiZY',
+    appId: '1:255870757274:ios:ae306cece578a404ae7223',
+    messagingSenderId: '255870757274',
+    projectId: 'talipapa-4777f',
+    storageBucket: 'talipapa-4777f.firebasestorage.app',
     iosBundleId: 'com.example.Talipapa',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyB4jFm5fETu-NQa9uIQMWTpQeL7aqcLXiQ',
-    appId: '1:886106181787:ios:8da463a025e304cb1df63e',
-    messagingSenderId: '886106181787',
-    projectId: 'talipapa-ef93a',
-    storageBucket: 'talipapa-ef93a.firebasestorage.app',
+    apiKey: 'AIzaSyAIUbRyBjaSmRxd35x9ZtRcXAk04fbpiZY',
+    appId: '1:255870757274:ios:ae306cece578a404ae7223',
+    messagingSenderId: '255870757274',
+    projectId: 'talipapa-4777f',
+    storageBucket: 'talipapa-4777f.firebasestorage.app',
     iosBundleId: 'com.example.Talipapa',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAyt5bznWm5Kmad2Jp45gD0akUAlbY-07Q',
-    appId: '1:886106181787:web:02cd858d0eb90c851df63e',
-    messagingSenderId: '886106181787',
-    projectId: 'talipapa-ef93a',
-    authDomain: 'talipapa-ef93a.firebaseapp.com',
-    storageBucket: 'talipapa-ef93a.firebasestorage.app',
-    measurementId: 'G-F8K50HYEY0',
+    apiKey: 'AIzaSyC0VWeWu3tIKzBWKWUbHYiUnhPZyVOFpG4',
+    appId: '1:255870757274:web:01dd4566fdfb3c79ae7223',
+    messagingSenderId: '255870757274',
+    projectId: 'talipapa-4777f',
+    authDomain: 'talipapa-4777f.firebaseapp.com',
+    storageBucket: 'talipapa-4777f.firebasestorage.app',
+    measurementId: 'G-BPGVPYKWHB',
   );
 }
